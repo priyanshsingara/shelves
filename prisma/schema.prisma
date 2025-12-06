@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shelves   Shelf[]
+  comments  Comment[]
+  likes     Like[]
+  followers Follow[]  @relation("following")
+  following Follow[]  @relation("follower")
+  otpCodes  OTPVerification[]
+}
+
+model OTPVerification {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+
+  @@index([email])
+}
+
+model Shelf {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#A8D5E2")
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  items Item[]
+
+  @@index([userId])
+}
+
+model Item {
+  id          String     @id @default(cuid())
+  url         String
+  title       String
+  imageUrl    String?
+  description String?
+  status      ItemStatus @default(WANTED)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  shelf   Shelf  @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  shelfId String
+
+  comments Comment[]
+  likes    Like[]
+
+  @@index([shelfId])
+}
+
+enum ItemStatus {
+  OWNED
+  WANTED
+}
+
+model Follow {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  follower    User   @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  String
+
+  following   User   @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String
+
+  @@index([itemId])
+  @@index([userId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId String
+
+  @@unique([userId, itemId])
+  @@index([itemId])
+  @@index([userId])
+}
