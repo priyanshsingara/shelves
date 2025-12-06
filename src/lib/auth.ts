@@ -2,9 +2,22 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { prisma } from './db'
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback-secret-change-in-production'
-)
+function getJWTSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET
+  
+  if (!secret || secret === 'fallback-secret-change-in-production') {
+    // Only throw at actual runtime (when functions are called), not during build
+    if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
+      throw new Error('JWT_SECRET environment variable must be set in production')
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️  JWT_SECRET not set. Using fallback (development only).')
+    }
+    return new TextEncoder().encode('fallback-secret-change-in-production-dev-only')
+  }
+  
+  return new TextEncoder().encode(secret)
+}
 
 export interface UserPayload {
   id: string
@@ -13,16 +26,18 @@ export interface UserPayload {
 }
 
 export async function createToken(user: UserPayload): Promise<string> {
+  const secret = getJWTSecret()
   return new SignJWT({ user })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(JWT_SECRET)
+    .sign(secret)
 }
 
 export async function verifyToken(token: string): Promise<UserPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const secret = getJWTSecret()
+    const { payload } = await jwtVerify(token, secret)
     return payload.user as UserPayload
   } catch {
     return null

@@ -5,7 +5,11 @@ export async function POST() {
   const cookieStore = await cookies()
   cookieStore.delete('auth-token')
   
-  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'))
+  // Determine the base URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  
+  return NextResponse.redirect(new URL('/login', baseUrl))
 }
 
 

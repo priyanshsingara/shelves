@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { generateOTP } from '@/lib/auth'
 
+// Simple email validation
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
 
     if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+    }
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
     }
 
     // Generate OTP
@@ -29,12 +40,15 @@ export async function POST(request: NextRequest) {
     })
 
     // Send email
-    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 're_your_resend_api_key') {
+    const resendApiKey = process.env.RESEND_API_KEY
+    const resendFromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@yourdomain.com'
+    
+    if (resendApiKey && resendApiKey !== 're_your_resend_api_key') {
       const { Resend } = await import('resend')
-      const resend = new Resend(process.env.RESEND_API_KEY)
+      const resend = new Resend(resendApiKey)
       
       await resend.emails.send({
-        from: 'linkink <noreply@yourdomain.com>',
+        from: resendFromEmail.includes('<') ? resendFromEmail : `linkink <${resendFromEmail}>`,
         to: email,
         subject: 'Your linkink verification code',
         html: `

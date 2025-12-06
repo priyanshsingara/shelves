@@ -54,12 +54,18 @@ export async function POST(request: NextRequest) {
 
     // Set cookie
     const cookieStore = await cookies()
+    const isProduction = process.env.NODE_ENV === 'production'
     cookieStore.set('auth-token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction, // Always secure in production
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
+      ...(isProduction && process.env.VERCEL_URL && {
+        domain: process.env.VERCEL_URL.includes('.vercel.app') 
+          ? undefined // Use default domain for Vercel preview deployments
+          : new URL(`https://${process.env.VERCEL_URL}`).hostname
+      }),
     })
 
     return NextResponse.json({ 
